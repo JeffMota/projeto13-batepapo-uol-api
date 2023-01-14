@@ -76,6 +76,39 @@ server.post("/participants", async (req, res) => {
 })
 
 
+//Buscar todas as mensagen
+server.get('/messages', async (req, res) => {
+    const { user } = req.headers
+
+    const headSchema = joi.object({
+        user: joi.string().required()
+    })
+
+    const validation = headSchema.validate({ user: user }, { abortEarly: false })
+
+    if (validation.error) {
+        const errors = validation.error.details.map(detail => detail.message)
+        return res.status(422).send(errors)
+    }
+
+    try {
+
+        const messages = await db.collection('messages').find().toArray()
+
+        let filteredMsg = []
+        messages.forEach(msg => {
+            if (msg.to === 'Todos' || msg.to === head.user || msg.from === head.user) {
+                filteredMsg.push(msg)
+            }
+        })
+
+        res.send(filteredMsg)
+
+    } catch (error) {
+        console.log(error.message)
+    }
+})
+
 //Remoção automática de usuários inativos
 setInterval(async () => {
 
