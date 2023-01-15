@@ -79,7 +79,7 @@ server.post("/participants", async (req, res) => {
 //Buscar todas as mensagen
 server.get('/messages', async (req, res) => {
     const { user } = req.headers
-    const { limit } = Number(req.query)
+    const { limit } = req.query
 
     const headSchema = joi.object({
         user: joi.string().required(),
@@ -104,10 +104,14 @@ server.get('/messages', async (req, res) => {
             }
         })
 
-        if (limit) {
-            return res.send(filteredMsg.reverse().slice(-limit))
+        if (limit && filteredMsg.length > limit) {
+            // let aux = []
+            // for (let i = filteredMsg.length - 1; i >= filteredMsg.length - limit; i--) {
+            //     aux.push(filteredMsg[i])
+            // }
+            return res.send(filteredMsg.reverse().slice(0, limit))
         }
-        res.send(filteredMsg)
+        res.send(filteredMsg.reverse())
 
     } catch (error) {
         console.log(error.message)
@@ -119,7 +123,7 @@ server.post('/messages', async (req, res) => {
     const { user } = req.headers
     const msg = req.body
 
-    if (!user || user === '') return res.status(422)
+    if (!user || user === '') return res.sendStatus(422)
 
     //Verificando usuário
     try {
@@ -127,7 +131,7 @@ server.post('/messages', async (req, res) => {
         if (!userExist) return db.status(422).send('Você não está logado!')
 
     } catch (error) {
-        return res.status(500).send('Não foi possível verificar usuário')
+        return res.sendStatus(422)
     }
 
     const msgSchema = joi.object({
@@ -183,7 +187,7 @@ server.post('/status', async (req, res) => {
 
 })
 
-//Remoção automática de usuários inativos
+// Remoção automática de usuários inativos
 setInterval(async () => {
 
     const users = await db.collection('participants').find().toArray()
