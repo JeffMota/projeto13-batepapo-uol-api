@@ -75,7 +75,6 @@ server.post("/participants", async (req, res) => {
 
 })
 
-
 //Buscar todas as mensagen
 server.get('/messages', async (req, res) => {
     const { user } = req.headers
