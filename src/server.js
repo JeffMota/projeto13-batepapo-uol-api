@@ -79,11 +79,11 @@ server.post("/participants", async (req, res) => {
 //Buscar todas as mensagen
 server.get('/messages', async (req, res) => {
     const { user } = req.headers
-    const { limit } = req.query
+    const { limit } = Number(req.query)
 
     const headSchema = joi.object({
         user: joi.string().required(),
-        limit: joi.number()
+        limit: joi.number().min(1)
     })
 
     const validation = headSchema.validate({ user: user, limit: limit }, { abortEarly: false })
@@ -105,7 +105,7 @@ server.get('/messages', async (req, res) => {
         })
 
         if (limit) {
-            return res.send(filteredMsg.slice(-limit))
+            return res.send(filteredMsg.reverse().slice(-limit))
         }
         res.send(filteredMsg)
 
@@ -118,6 +118,8 @@ server.get('/messages', async (req, res) => {
 server.post('/messages', async (req, res) => {
     const { user } = req.headers
     const msg = req.body
+
+    if (!user || user === '') return res.status(422)
 
     //Verificando usuário
     try {
