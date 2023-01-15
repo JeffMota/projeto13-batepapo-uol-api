@@ -79,12 +79,14 @@ server.post("/participants", async (req, res) => {
 //Buscar todas as mensagen
 server.get('/messages', async (req, res) => {
     const { user } = req.headers
+    const { limit } = req.query
 
     const headSchema = joi.object({
-        user: joi.string().required()
+        user: joi.string().required(),
+        limit: joi.number()
     })
 
-    const validation = headSchema.validate({ user: user }, { abortEarly: false })
+    const validation = headSchema.validate({ user: user, limit: limit }, { abortEarly: false })
 
     if (validation.error) {
         const errors = validation.error.details.map(detail => detail.message)
@@ -97,11 +99,14 @@ server.get('/messages', async (req, res) => {
 
         let filteredMsg = []
         messages.forEach(msg => {
-            if (msg.to === 'Todos' || msg.to === head.user || msg.from === head.user) {
+            if (msg.to === 'Todos' || msg.to === user || msg.from === user) {
                 filteredMsg.push(msg)
             }
         })
 
+        if (limit) {
+            return res.send(filteredMsg.slice(-limit))
+        }
         res.send(filteredMsg)
 
     } catch (error) {
@@ -109,25 +114,94 @@ server.get('/messages', async (req, res) => {
     }
 })
 
+//Envio de mensagem
+server.post('/messages', async (req, res) => {
+    const { user } = req.headers
+    const msg = req.body
+
+    //Verificando usuário
+    try {
+        const userExist = await db.collection('participants').findOne({ name: user })
+        if (!userExist) return db.status(422).send('Você não está logado!')
+
+    } catch (error) {
+        return res.status(500).send('Não foi possível verificar usuário')
+    }
+
+    const msgSchema = joi.object({
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().valid('message', 'private_message').required()
+    })
+
+    const validation = msgSchema.validate(msg, { abortEarly: false })
+
+    if (validation.error) {
+        const errors = validation.error.details.map(detail => detail.message)
+        return res.status(422).send(errors)
+    }
+
+    try {
+        await db.collection('messages').insertOne(
+            {
+                from: user,
+                to: msg.to,
+                text: msg.text,
+                type: msg.type,
+                time: dayjs().format('HH:mm:ss')
+            }
+        )
+
+        return res.sendStatus(201)
+
+    } catch (error) {
+        return res.status(500).send('Não foi possível enviar mensagem')
+    }
+
+})
+
+//Status do usuário
+server.post('/status', async (req, res) => {
+    const { user } = req.headers
+
+    let userExist = await db.collection('participants').findOne({ name: user })
+    if (!userExist) {
+        return res.sendStatus(404)
+    }
+
+    try {
+        userExist.lastStatus = Date.now()
+        const result = await db.collection('participants').updateOne({ name: user }, { $set: userExist })
+
+        res.sendStatus(200)
+
+    } catch (error) {
+
+    }
+
+})
+
 //Remoção automática de usuários inativos
 setInterval(async () => {
 
     const users = await db.collection('participants').find().toArray()
 
-    users.forEach(async user => {
-        if ((Date.now() - user.lastStatus) > 10000) {
-            await db.collection('participants').deleteOne({ name: user.name })
+    if (users.length > 0) {
+        users.forEach(async user => {
+            if ((Date.now() - user.lastStatus) > 10000) {
+                await db.collection('participants').deleteOne({ name: user.name })
 
-            db.collection('messages').insertOne(
-                {
-                    from: user.name,
-                    to: 'Todos',
-                    text: 'sai da sala...',
-                    type: 'status',
-                    time: dayjs().format('HH:mm:ss')
-                })
-        }
-    })
+                db.collection('messages').insertOne(
+                    {
+                        from: user.name,
+                        to: 'Todos',
+                        text: 'sai da sala...',
+                        type: 'status',
+                        time: dayjs().format('HH:mm:ss')
+                    })
+            }
+        })
+    }
 
 }, 15000)
 
