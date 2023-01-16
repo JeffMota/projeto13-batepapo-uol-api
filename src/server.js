@@ -104,7 +104,7 @@ server.get('/messages', async (req, res) => {
         }
 
         if (limit && filteredMsg.length > limit) {
-            return res.send(filteredMsg.slice(-limit))
+            return res.send(filteredMsg.slice(limit))
         } else {
             return res.send(filteredMsg)
         }
