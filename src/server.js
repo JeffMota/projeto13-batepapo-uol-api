@@ -97,16 +97,16 @@ server.get('/messages', async (req, res) => {
         const messages = await db.collection('messages').find().toArray()
 
         let filteredMsg = []
-        for (let i = 0; i < messages.length; i++) {
-            if (messages[i].to === 'Todos' || messages[i].to === user || messages[i].from === user) {
-                filteredMsg.push(messages[i])
+        messages.forEach(msg => {
+            if (msg.to === 'Todos' || msg.to === user || msg.from === user) {
+                filteredMsg.push(msg)
             }
-        }
+        })
 
         if (limit && filteredMsg.length > limit) {
-            return res.send(filteredMsg.slice(limit))
+            return res.send(filteredMsg.reverse().slice(0, limit))
         } else {
-            return res.send(filteredMsg)
+            return res.send(filteredMsg.reverse())
         }
 
     } catch (error) {
