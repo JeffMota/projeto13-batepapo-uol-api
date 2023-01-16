@@ -1,6 +1,6 @@
 import express from 'express'
 import cors from 'cors'
-import { MongoClient } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'
 import dotenv from 'dotenv'
 import dayjs from 'dayjs'
 import joi from 'joi'
@@ -97,20 +97,17 @@ server.get('/messages', async (req, res) => {
         const messages = await db.collection('messages').find().toArray()
 
         let filteredMsg = []
-        messages.forEach(msg => {
-            if (msg.to === 'Todos' || msg.to === user || msg.from === user) {
-                filteredMsg.push(msg)
+        for (let i = 0; i < messages.length; i++) {
+            if (messages[i].to === 'Todos' || messages[i].to === user || messages[i].from === user) {
+                filteredMsg.push(messages[i])
             }
-        })
+        }
 
         if (limit && filteredMsg.length > limit) {
-            // let aux = []
-            // for (let i = filteredMsg.length - 1; i >= filteredMsg.length - limit; i--) {
-            //     aux.push(filteredMsg[i])
-            // }
-            return res.send(filteredMsg.reverse().slice(0, limit))
+            return res.send(filteredMsg.slice(-limit))
+        } else {
+            return res.send(filteredMsg)
         }
-        res.send(filteredMsg.reverse())
 
     } catch (error) {
         console.log(error.message)
@@ -209,6 +206,40 @@ setInterval(async () => {
     }
 
 }, 15000)
+
+//Dletar mensagem
+server.delete('/messages/:id', async (req, res) => {
+    const { user } = req.headers
+    const id = req.params.id
+
+    //Verificando usuário e id
+    if (!user || user === '' || id === '') return res.sendStatus(422)
+
+    try {
+        const userExist = await db.collection('participants').findOne({ name: user })
+        if (!userExist) return db.status(422).send('Você não está logado!')
+
+    } catch (error) {
+        return res.sendStatus(422)
+    }
+
+    try {
+
+        const msg = await db.collection('messages').findOne({ _id: ObjectId(id) })
+
+        if (!msg) return res.status(404).send('Mensagem não encontrada!')
+
+        if (msg.from !== user) return res.status(401).send("Usuário não corresponde!")
+
+        await db.collection('messages').deleteOne({ _id: ObjectId(id) })
+        res.send('OK')
+
+    } catch (error) {
+
+    }
+
+})
+
 
 const PORT = 5000
 
